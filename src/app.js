@@ -1,8 +1,14 @@
-import {Person} from './model/Person';
-import {Renderer} from './model/Renderer'
+import { Renderer } from './Renderer';
+import { Scene} from './Scene';
 
 global.app = function () {
-    var christoph = new Person('Christoph', 'Burgdorf');
-    let renderer = new Renderer();
-    console.log(christoph.fullName);
+  //let material = new Material(1, vec3.fromValues(1,1,1));
+
+
+  let scene = new Scene();
+  setTimeout(() => {
+      let renderer = new Renderer();
+      let tri_data = scene.BuildSceneTextures();
+      renderer.addSceneTextures(tri_data);
+  }, 100);
 };

@@ -17,7 +17,7 @@ var config = {
 
 // clean the output directory
 gulp.task('clean', function(cb){
-    rimraf(config.outputDir, cb);
+    rimraf(config.outputDir + "/**/*", cb);
 });
 
 var bundler;
@@ -38,6 +38,18 @@ function bundle() {
     .pipe(reload({ stream: true }));
 }
 
+gulp.task('copy-models', function () {
+    gulp.src(
+        [
+            'src/models/**/*'
+        ],
+        {
+            base: 'src/models'
+        }
+    )
+    .pipe(gulp.dest('dist/models'));
+});
+
 gulp.task('build-persistent', ['clean'], function() {
   return bundle();
 });
@@ -46,7 +58,7 @@ gulp.task('build', ['build-persistent'], function() {
   process.exit(0);
 });
 
-gulp.task('watch', ['build-persistent'], function() {
+gulp.task('watch', ['build-persistent', 'copy-models'], function() {
 
   browserSync({
     server: {
