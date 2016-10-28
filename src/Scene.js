@@ -7,7 +7,7 @@ export class Scene {
   }
 
   CreateDefaultScene() {
-    Object3d.LoadObj('./dist/models/light_plane.txt', 5).then((object) => this.objects.push(object));
+    Object3d.LoadObj('./dist/models/light_plane.txt', 6).then((object) => this.objects.push(object));
     Object3d.LoadObj('./dist/models/floor.txt', 3).then((object) => this.objects.push(object));
     Object3d.LoadObj('./dist/models/right_wall.txt', 0).then((object) => this.objects.push(object));
     Object3d.LoadObj('./dist/models/left_wall.txt', 2).then((object) => this.objects.push(object));
