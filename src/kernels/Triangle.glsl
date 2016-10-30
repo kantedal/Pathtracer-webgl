@@ -5,25 +5,25 @@ struct Triangle {
   int material_index;
 };
 
-Ray CreateRay(vec2 pixel_position, int sample) {
-  vec3 base_vector_x = camera.v3 - camera.v4;
-  vec3 base_vector_y = camera.v1 - camera.v4;
-
-  float width = 512.0;
-  float height = 512.0;
-
-  vec3 dx = (base_vector_x / width);
-  vec3 dy = (base_vector_y / height);
-
-  vec3 rand_x = dx * random(vec3(1.9898, 128.13, 7.7182), time + float(sample));
-  vec3 rand_y = dy * random(vec3(134.9898, 36.342, 424.232), time + float(sample));
-
-  vec3 vert = camera.v4 + pixel_position.x / width * base_vector_x + (1.0 - pixel_position.y / height) * base_vector_y;
-  vert += rand_x + rand_y;
-  vec3 direction = normalize(vert - camera.position);
-
-  return Ray(camera.position, direction);
-}
+// Ray CreateRay(vec2 pixel_position, int sample) {
+//   vec3 base_vector_x = camera.v3 - camera.v4;
+//   vec3 base_vector_y = camera.v1 - camera.v4;
+//
+//   float width = 512.0;
+//   float height = 512.0;
+//
+//   vec3 dx = (base_vector_x / width);
+//   vec3 dy = (base_vector_y / height);
+//
+//   vec3 rand_x = dx * random(vec3(1.9898, 128.13, 7.7182), time + float(sample));
+//   vec3 rand_y = dy * random(vec3(134.9898, 36.342, 424.232), time + float(sample));
+//
+//   vec3 vert = camera.v4 + pixel_position.x / width * base_vector_x + (1.0 - pixel_position.y / height) * base_vector_y;
+//   vert += rand_x + rand_y;
+//   vec3 direction = normalize(vert - camera.position);
+//
+//   return Ray(camera.position, direction);
+// }
 
 Triangle GetTriangleFromIndex(int triangle_index) {
   // Fetch triangle from texture

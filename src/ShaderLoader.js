@@ -36,7 +36,6 @@ export function LoadObjects(fileNames, callback, errorCallback) {
           object_files[shader_index] = object;
           loaded_files++;
           if (loaded_files == fileNames.length) {
-            console.log(object_files);
             callback(object_files);
           }
         });

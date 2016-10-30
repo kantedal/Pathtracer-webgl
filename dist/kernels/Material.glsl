@@ -3,14 +3,17 @@ struct Material {
   int material_type;
   float emission_rate;
 };
-Material materials[9];
 
 Material GetMaterial(int material_index) {
-  for (int i = 0; i < 9; i++) {
-    if (i == material_index) {
-      return materials[i];
-    }
-  }
+  // Fetch material from texture
+  vec2 sample = vec2(1.0, 0.0) / vec2(512, 512);
+  vec2 start_sample = (vec2(1.0, 0.0) / vec2(512, 512)) * float(material_index) * 2.0 + 0.5 * sample;
+
+  vec3 color = vec3(texture2D(u_material_texture, start_sample));
+  int material_type = int(texture2D(u_material_texture, start_sample + sample).x);
+  float emission_rate = texture2D(u_material_texture, start_sample + sample).y;
+
+  return Material(color, material_type, emission_rate);
 }
 
 vec3 BRDF(Ray ray, Material material, vec3 collision_normal, vec3 next_dir) {

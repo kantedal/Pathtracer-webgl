@@ -43,7 +43,7 @@ export class Object3d {
             break;
         }
       }
-      console.log(triangles);
+
       return new Object3d(triangles, material);
   }
 

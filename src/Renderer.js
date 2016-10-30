@@ -1,14 +1,19 @@
 import { LoadShaders } from './ShaderLoader';
 
+function throwOnGLError(err, funcName, args) {
+  throw WebGLDebugUtils.glEnumToString(err) + " was caused by call to: " + funcName;
+};
+
 var gl = null;
 
 export class Renderer {
-  constructor() {
+  constructor(camera) {
+    this.camera = camera;
+
     this.canvas = null;
     this.buffer;
     this.vertex_shader;
     this.fragment_shader;
-    //this.tracerProgram;
     this.renderProgram;
     this.vertex_position;
     this.timeLocation;
@@ -17,92 +22,125 @@ export class Renderer {
 
     this.samplesLocation;
     this.renderSamplesLocation;
+    this.accumulated_buffer_location;
 
     this.vertexBuffer = null;
     this.frameBuffer = null;
-    this.fb = null;
     this.textures = [];
     this.tracerProgram = null;
     this.renderVertexAttribute = null;
 
+    this.triangle_location;
     this.triangleTexture = null;
+    this.material_location;
+    this.materialTexture = null;
+    this.sphereLocation;
+    this.sphereTexture = null;
+
+    this.rendererReady = false;
+
+    this.elapsedTime = 0;
+    this.frameCount = 0;
+    this.lastTime = new Date().getTime();
 
     this.init();
 
     this.animate = (time) => {
-      //this.resizeCanvas();
-      this.canvas.width = 512;
-      this.canvas.height = 512;
-      this.parameters.screenWidth = this.canvas.width;
-    	this.parameters.screenHeight = this.canvas.height;
-      gl.viewport( 0, 0, this.canvas.width, this.canvas.height );
+      if (this.rendererReady) {
+        //this.resizeCanvas();
+        this.canvas.width = 512;
+        this.canvas.height = 512;
+        this.parameters.screenWidth = this.canvas.width;
+      	this.parameters.screenHeight = this.canvas.height;
+        gl.viewport( 0, 0, this.canvas.width, this.canvas.height );
 
+        // render to texture
+        gl.useProgram(this.tracerProgram);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.textures[0]);
 
-      // render to texture
-      gl.useProgram(this.tracerProgram);
+        // Set camera position
+        this.setCameraPosition();
 
-      var location1 = gl.getUniformLocation(this.tracerProgram, "u_buffer_texture");
-      var location2 = gl.getUniformLocation(this.tracerProgram, "u_triangle_texture");
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.textures[1], 0);
+        gl.vertexAttribPointer(this.tracerVertexAttribute, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-      gl.uniform1i(location1, 0);
-      gl.uniform1i(location2, 1);
+        this.parameters.time = new Date().getTime() - this.parameters.start_time;
+        this.parameters.samples += 1;
 
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.textures[0]);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, this.triangleTexture);
+        gl.uniform1f( this.timeLocation, this.parameters.time / 1000 );
+        gl.uniform2f( this.resolutionLocation, this.parameters.screenWidth, this.parameters.screenHeight );
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.fb);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.textures[1], 0);
-      gl.vertexAttribPointer(this.tracerVertexAttribute, 2, gl.FLOAT, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        this.textures.reverse();
 
-      this.parameters.time = new Date().getTime() - this.parameters.start_time;
-      this.parameters.samples += 1;
+        gl.useProgram(this.renderProgram);
+        gl.bindTexture(gl.TEXTURE_2D, this.textures[0]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+        gl.vertexAttribPointer(this.renderVertexAttribute, 2, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.uniform1f( this.renderSamplesLocation,  this.parameters.samples );
+      }
 
-      gl.uniform1f( this.timeLocation, this.parameters.time / 1000 );
-      gl.uniform1f( this.samplesLocation,  this.parameters.samples );
-      gl.uniform2f( this.resolutionLocation, this.parameters.screenWidth, this.parameters.screenHeight );
-
-      this.textures.reverse();
-
-      if (this.parameters.samples % 50 == 0)
-        console.log(this.parameters.samples);
-
-      gl.useProgram(this.renderProgram);
-      gl.bindTexture(gl.TEXTURE_2D, this.textures[0]);
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-      gl.vertexAttribPointer(this.renderVertexAttribute, 2, gl.FLOAT, false, 0, 0);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.uniform1f( this.renderSamplesLocation,  this.parameters.samples );
-
+      this.calculateSPS();
+      document.getElementById('total-samples').innerHTML = this.parameters.samples;
 			requestAnimationFrame( this.animate );
+      //setTimeout(this.animate, 1000/120);
     }
   }
 
-  createRenderProgram() {
-    console.log("Create render program");
+  setCameraPosition() {
+    if (this.camera != null) {
+      gl.uniform3f(gl.getUniformLocation( this.tracerProgram, 'camera_right'), this.camera.camera_right[0], this.camera.camera_right[1], this.camera.camera_right[2] );
+      gl.uniform3f(gl.getUniformLocation( this.tracerProgram, 'camera_up'), this.camera.camera_up[0], this.camera.camera_up[1], this.camera.camera_up[2] );
+      gl.uniform3f(gl.getUniformLocation( this.tracerProgram, 'camera_position'), this.camera.position[0], this.camera.position[1], this.camera.position[2] );
+      gl.uniform3f(gl.getUniformLocation( this.tracerProgram, 'camera_direction'), this.camera.direction[0], this.camera.direction[1], this.camera.direction[2] );
 
-    let vertices = [-1, -1, -1, 1, 1, -1, 1, 1];
-    this.vertexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+      if (this.camera.hasChanged) {
+        this.resetBufferTextures();
+        this.parameters.samples = 0;
+        this.camera.hasChanged = false;
+      }
+    }
+  }
 
-    //this.frameBuffer = gl.createFramebuffer();
-    this.fb = gl.createFramebuffer();
+  // Calcuate samples per second
+  calculateSPS() {
+    let now = new Date().getTime();
+    this.frameCount++;
+    this.elapsedTime += (now - this.lastTime);
+    this.lastTime = now;
 
-    let type = gl.getExtension('OES_texture_float') ? gl.FLOAT : gl.UNSIGNED_BYTE;
+    if(this.elapsedTime >= 1000) {
+      let fps = this.frameCount;
+      this.frameCount = 0;
+      this.elapsedTime -= 1000;
+      document.getElementById('fps-count').innerHTML = fps;
+    }
+  }
+
+  resetBufferTextures() {
     this.textures = [];
     for(var i = 0; i < 2; i++) {
       this.textures.push(gl.createTexture());
       gl.bindTexture(gl.TEXTURE_2D, this.textures[i]);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 512, 512, 0, gl.RGB, type, null);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 512, 512, 0, gl.RGB, gl.FLOAT, null);
     }
     gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  createRenderProgram() {
+    let vertices = [-1, -1, -1, 1, 1, -1, 1, 1];
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    this.frameBuffer = gl.createFramebuffer();
+    this.resetBufferTextures();
 
     // create render shader
     let render_vertex_shader = document.getElementById('vs_render').textContent;
@@ -112,32 +150,56 @@ export class Renderer {
     gl.enableVertexAttribArray(this.renderVertexAttribute);
   }
 
-  allocateTexture() {
-      this.triangleTexture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, this.triangleTexture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      //wtu.glErrorShouldBe(gl, gl.NO_ERROR, "texture parameter setup should succeed");
-  }
+  addSceneTextures(textureData) {
+    // Create triangle texture
+    this.triangleTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.triangleTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1024, 1024, 0, gl.RGB, gl.FLOAT, textureData.triangles);
 
-  addSceneTextures(triangleArray) {
-    console.log("Create triangle texture");
+    this.sphereTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.sphereTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 512, 512, 0, gl.RGB, gl.FLOAT, textureData.spheres);
 
-    this.allocateTexture();
-    let width = 1024;
-    let height = 1024;
-    let format = gl.RGB;
+    // Create material texture
+    this.materialTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.materialTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 512, 512, 0, gl.RGB, gl.FLOAT, textureData.materials);
 
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, format, gl.FLOAT, triangleArray);
+    gl.useProgram(this.tracerProgram);
+    gl.uniform1i(this.accumulated_buffer_location, 0);
+    gl.uniform1i(this.triangle_location, 1);
+    gl.uniform1i(this.sphere_location, 2);
+    gl.uniform1i(this.material_location, 3);
+
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.triangleTexture);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.sphereTexture);
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, this.materialTexture);
+
+    gl.uniform1i(gl.getUniformLocation( this.tracerProgram, 'triangle_count'), textureData.triangle_count );
+    gl.uniform1i(gl.getUniformLocation( this.tracerProgram, 'sphere_count'), textureData.sphere_count );
+
+    this.rendererReady = true;
   }
 
   init() {
     LoadShaders([
       './dist/kernels/header.glsl',
       './dist/kernels/Ray.glsl',
-      './dist/kernels/Camera.glsl',
       './dist/kernels/Collision.glsl',
       './dist/kernels/Material.glsl',
       './dist/kernels/Triangle.glsl',
@@ -151,7 +213,10 @@ export class Renderer {
     		this.canvas = document.querySelector('canvas');
 
     		// Initialise WebGL
-    		try { gl = this.canvas.getContext( 'experimental-webgl' ); } catch( error ) { }
+    		try {
+           gl = this.canvas.getContext( 'webgl' );
+           //gl = WebGLDebugUtils.makeDebugContext(gl, throwOnGLError);
+         } catch( error ) { }
     		if ( !gl ) throw "cannot create webgl context";
 
         // BROWSER MUST SUPPORT THIS!!!
@@ -170,14 +235,18 @@ export class Renderer {
         gl.enableVertexAttribArray(this.tracerVertexAttribute);
 
         this.timeLocation = gl.getUniformLocation( this.tracerProgram, 'time' );
-        this.samplesLocation = gl.getUniformLocation( this.tracerProgram, 'samples' );
-    		this.resolutionLocation = gl.getUniformLocation( this.tracerProgram, 'resolution' );
+        this.resolutionLocation = gl.getUniformLocation( this.tracerProgram, 'resolution' );
+
+        this.accumulated_buffer_location = gl.getUniformLocation(this.tracerProgram, "u_buffer_texture");
+        this.triangle_location = gl.getUniformLocation(this.tracerProgram, "u_triangle_texture");
+        this.sphere_location = gl.getUniformLocation(this.tracerProgram, "u_sphere_texture");
+        this.material_location = gl.getUniformLocation(this.tracerProgram, "u_material_texture");
+
         this.renderSamplesLocation = gl.getUniformLocation( this.renderProgram, 'samples' );
 
         this.animate();
     },
     () => {});
-
   }
 
   createProgram(vertex, fragment) {

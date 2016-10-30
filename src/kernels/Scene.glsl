@@ -1,32 +1,29 @@
 bool SceneIntersections(Ray ray, inout Collision collision) {
-  //Collision collision = Collision(vec3(0,0,0), vec3(0,0,0), 0);
-
   //Check sphere collision
-  for (int sphere_idx = 0; sphere_idx < 3; sphere_idx++) {
-    Sphere sphere = spheres[sphere_idx];
+  int sphere_index = 0;
+  for (int i = 0; i < 1000; i++) {
+    Sphere sphere = GetSphere(sphere_index);
     if (SphereIntersection(ray, sphere, collision)) {
       return true;
     }
+    sphere_index++;
+
+    if (sphere_index >= sphere_count)
+      break;
   }
 
   // Check triangle collision
-  for (int tri_idx = 0; tri_idx < 25; tri_idx++) {
-    Triangle triangle = GetTriangleFromIndex(tri_idx);
+  int triangle_index = 0;
+  for (int i = 0; i < 1000; i++) {
+    Triangle triangle = GetTriangleFromIndex(triangle_index);
     if (TriangleIntersection(ray, triangle, collision)) {
       return true;
     }
+    triangle_index++;
+
+    if (triangle_index >= triangle_count)
+      break;
   }
 
-  // Triangle triangle = GetTriangleFromIndex(0);
   return false;
 }
-
-// vec3 TraceRay(Ray ray) {
-//   Collision collision = Collision(vec3(0,0,0), vec3(0,0,0), 0);
-//   bool test = SceneIntersections(ray, collision);
-//
-//   Material mat = GetMaterial(collision.material_index);
-//   //return BRDF(ray, mat, collision.normal);
-//
-//   return vec3(0,0,0);
-// }

@@ -1,0 +1,31 @@
+export class Camera {
+  constructor(position, direction) {
+    this._position = position;
+    this._look_at = vec3.fromValues(5,0,0);
+    this._direction = vec3.fromValues(0,0,0);
+    this._hasChanged = false;
+    this.update();
+  }
+
+  update() {
+    vec3.subtract(this._direction, this._look_at, this._position);
+    vec3.normalize(this._direction, this._direction);
+
+    let up_vector = vec3.fromValues(0,0,1);
+    this._camera_right = vec3.fromValues(0,0,0);
+    this._camera_up = vec3.fromValues(0,0,0);
+    vec3.cross(this._camera_right, this._direction, up_vector);
+    vec3.cross(this._camera_up, this._camera_right, this._direction);
+  }
+
+  get camera_up() { return this._camera_up; }
+  get camera_right() { return this._camera_right; }
+  get look_at() { return this._look_at; }
+  get position() { return this._position; }
+  get direction() { return this._direction; }
+  get hasChanged() { return this._hasChanged; }
+
+  set position(new_position) { this._position = new_position; }
+  set hasChanged(changed) { this._hasChanged = changed; }
+  set look_at(look_at) { this._look_at = look_at; }
+}

@@ -5,12 +5,12 @@ vec3 PathTrace(Ray ray) {
   for (int iteration = 0; iteration < 5; iteration++) {
     Collision collision;
     float distribution = 1.0;
-  
+
     if (!SceneIntersections(ray, collision))
       return vec3(0,0,0);
 
-
     Material collision_material = GetMaterial(collision.material_index);
+
     vec3 next_dir = PDF(ray, collision_material, collision.normal, iteration, distribution);
     mask *= BRDF(ray, collision_material, collision.normal, next_dir) * distribution;
 
@@ -28,4 +28,18 @@ vec3 PathTrace(Ray ray) {
   }
 
   return accumulated_color;
+}
+
+
+vec3 TracePath(Ray ray) {
+  Collision collision;
+
+  if (!SceneIntersections(ray, collision))
+    return vec3(0,0,0);
+
+  Material collision_material = GetMaterial(collision.material_index);
+  if (collision_material.emission_rate != 0.0)
+    return vec3(1,0,1);
+
+  return collision_material.color;
 }
