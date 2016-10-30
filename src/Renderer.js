@@ -1,3 +1,5 @@
+import { LoadShaders } from './ShaderLoader';
+
 var gl = null;
 
 export class Renderer {
@@ -27,13 +29,7 @@ export class Renderer {
 
     this.init();
 
-    // OBS OBS Browser must support OES texture float extension!!
-    if (gl.getExtension("OES_texture_float")) {
-
-    }
-
     this.animate = (time) => {
-      //console.log(time);
       //this.resizeCanvas();
       this.canvas.width = 512;
       this.canvas.height = 512;
@@ -84,11 +80,6 @@ export class Renderer {
 
 			requestAnimationFrame( this.animate );
     }
-
-    setTimeout(() => {
-      this.animate();
-    }, 2000);
-
   }
 
   createRenderProgram() {
@@ -135,40 +126,58 @@ export class Renderer {
     console.log("Create triangle texture");
 
     this.allocateTexture();
-    let width = 2048;
-    let height = 2048;
+    let width = 1024;
+    let height = 1024;
     let format = gl.RGB;
 
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, format, gl.FLOAT, triangleArray);
   }
 
   init() {
+    LoadShaders([
+      './dist/kernels/header.glsl',
+      './dist/kernels/Ray.glsl',
+      './dist/kernels/Camera.glsl',
+      './dist/kernels/Collision.glsl',
+      './dist/kernels/Material.glsl',
+      './dist/kernels/Triangle.glsl',
+      './dist/kernels/Sphere.glsl',
+      './dist/kernels/Scene.glsl',
+      './dist/kernels/RayTracer.glsl',
+      './dist/kernels/main.glsl',
+    ], (kernelData) => {
+        this.fragment_shader = kernelData;
+        this.vertex_shader = document.getElementById('vs').textContent;
+    		this.canvas = document.querySelector('canvas');
 
-    this.vertex_shader = document.getElementById('vs').textContent;
-		this.fragment_shader = document.getElementById('fs').textContent;
-		this.canvas = document.querySelector('canvas');
+    		// Initialise WebGL
+    		try { gl = this.canvas.getContext( 'experimental-webgl' ); } catch( error ) { }
+    		if ( !gl ) throw "cannot create webgl context";
 
-		// Initialise WebGL
-		try { gl = this.canvas.getContext( 'experimental-webgl' ); } catch( error ) { }
-		if ( !gl ) throw "cannot create webgl context";
+        // BROWSER MUST SUPPORT THIS!!!
+        gl.getExtension("OES_texture_float");
 
-    this.createRenderProgram();
+        this.createRenderProgram();
 
-		// Create Vertex buffer (2 triangles)
-		this.buffer = gl.createBuffer();
-		gl.bindBuffer( gl.ARRAY_BUFFER, this.buffer );
-		gl.bufferData( gl.ARRAY_BUFFER, new Float32Array( [ -1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, - 1.0, 1.0, 1.0, - 1.0, 1.0 ] ), gl.STATIC_DRAW );
+    		// Create Vertex buffer (2 triangles)
+    		this.buffer = gl.createBuffer();
+    		gl.bindBuffer( gl.ARRAY_BUFFER, this.buffer );
+    		gl.bufferData( gl.ARRAY_BUFFER, new Float32Array( [ -1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, - 1.0, 1.0, 1.0, - 1.0, 1.0 ] ), gl.STATIC_DRAW );
 
-		// Create Program
-		this.tracerProgram = this.createProgram( this.vertex_shader, this.fragment_shader );
-    this.tracerVertexAttribute = gl.getAttribLocation(this.tracerProgram, 'vertex');
-    gl.enableVertexAttribArray(this.tracerVertexAttribute);
+    		// Create Program
+    		this.tracerProgram = this.createProgram( this.vertex_shader, this.fragment_shader );
+        this.tracerVertexAttribute = gl.getAttribLocation(this.tracerProgram, 'vertex');
+        gl.enableVertexAttribArray(this.tracerVertexAttribute);
 
-    this.timeLocation = gl.getUniformLocation( this.tracerProgram, 'time' );
-    this.samplesLocation = gl.getUniformLocation( this.tracerProgram, 'samples' );
-		this.resolutionLocation = gl.getUniformLocation( this.tracerProgram, 'resolution' );
+        this.timeLocation = gl.getUniformLocation( this.tracerProgram, 'time' );
+        this.samplesLocation = gl.getUniformLocation( this.tracerProgram, 'samples' );
+    		this.resolutionLocation = gl.getUniformLocation( this.tracerProgram, 'resolution' );
+        this.renderSamplesLocation = gl.getUniformLocation( this.renderProgram, 'samples' );
 
-    this.renderSamplesLocation = gl.getUniformLocation( this.renderProgram, 'samples' );
+        this.animate();
+    },
+    () => {});
+
   }
 
   createProgram(vertex, fragment) {

@@ -1,17 +1,39 @@
-import { Object3d } from './Object3d'
+import { Object3d } from './Object3d';
+import { LoadObjects } from './ShaderLoader';
+import { Material } from './Material';
 
 export class Scene {
   constructor() {
     this.objects = [];
+    this.materials = [];
     this.CreateDefaultScene();
   }
 
   CreateDefaultScene() {
-    Object3d.LoadObj('./dist/models/light_plane.txt', 6).then((object) => this.objects.push(object));
-    Object3d.LoadObj('./dist/models/floor.txt', 3).then((object) => this.objects.push(object));
-    Object3d.LoadObj('./dist/models/right_wall.txt', 0).then((object) => this.objects.push(object));
-    Object3d.LoadObj('./dist/models/left_wall.txt', 2).then((object) => this.objects.push(object));
-    Object3d.LoadObj('./dist/models/roof.txt', 3).then((object) => this.objects.push(object));
+    let red_material = new Material(vec3.fromValues(1,0,0), 0);
+    let green_material = new Material(vec3.fromValues(1,0,0), 0);
+    let blue_material = new Material(vec3.fromValues(1,0,0), 0);
+    let white_material = new Material(vec3.fromValues(1,1,1), 0);
+    let emission_material = new Material(vec3.fromValues(1,1,1), 2);
+
+    this.materials.push(red_material);
+    this.materials.push(green_material);
+    this.materials.push(blue_material);
+    this.materials.push(white_material);
+    this.materials.push(emission_material);
+
+    LoadObjects([
+      {fileName: './dist/models/light_plane.txt', material: emission_material },
+      {fileName: './dist/models/floor.txt', material: white_material },
+      {fileName: './dist/models/right_wall.txt', material: blue_material },
+      {fileName: './dist/models/left_wall.txt', material: red_material},
+      {fileName: './dist/models/roof.txt', material: white_material},
+    ], (objects) => {
+      for (let object of objects) {
+        this.objects.push(object);
+      }
+    },
+    () => {});
   }
 
   BuildSceneTextures() {
@@ -33,16 +55,18 @@ export class Scene {
         triangleData.push(triangle.v2[1]);
         triangleData.push(triangle.v2[2]);
 
-        // Extra data
-        triangleData.push(object.material_index);
-        triangleData.push(0);
-        triangleData.push(0);
+        let material_index = 0;
+        for (let mat_idx = 0; mat_idx < this.materials.length; mat_idx++) {
+          if (this.materials[mat_idx] === object.material) {
+            material_index = mat_idx;
+            break;
+          }
+        }
 
-        // console.log("Triangle: ");
-        // console.log("v0: " + triangle.v0[0] + " " + triangle.v0[1] + " " + triangle.v0[2]);
-        // console.log("v1: " + triangle.v1[0] + " " + triangle.v1[1] + " " + triangle.v1[2]);
-        // console.log("v2: " + triangle.v2[0] + " " + triangle.v2[1] + " " + triangle.v2[2]);
-        // console.log("---------------------");
+        // Extra data
+        triangleData.push(material_index);
+        triangleData.push(0);
+        triangleData.push(0);
       }
     }
 

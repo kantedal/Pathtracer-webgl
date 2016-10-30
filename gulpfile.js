@@ -8,6 +8,7 @@ var source = require('vinyl-source-stream');
 var _ = require('lodash');
 var browserSync = require('browser-sync');
 var reload = browserSync.reload;
+livereload = require('gulp-livereload');
 
 var config = {
   entryFile: './src/app.js',
@@ -50,7 +51,21 @@ gulp.task('copy-models', function () {
     .pipe(gulp.dest('dist/models'));
 });
 
-gulp.task('build-persistent', ['clean'], function() {
+gulp.task('copy-kernels', function () {
+    console.log("copy kernels");
+    gulp.src(
+        [
+            'src/kernels/**/*'
+        ],
+        {
+            base: 'src/kernels'
+        }
+    )
+    .pipe(gulp.dest('dist/kernels'));
+});
+
+
+gulp.task('build-persistent', ['clean', 'copy-kernels'], function() {
   return bundle();
 });
 
@@ -65,6 +80,9 @@ gulp.task('watch', ['build-persistent', 'copy-models'], function() {
       baseDir: './'
     }
   });
+
+  livereload({ start: true });
+  gulp.watch('src/kernels/*.glsl', ['copy-kernels']);
 
   getBundler().on('update', function() {
     gulp.start('build-persistent')

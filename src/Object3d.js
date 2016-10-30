@@ -17,52 +17,36 @@ class Triangle {
   get edge2() { return this._edge2; }
 }
 
-export class Material {
-  constructor(material_type, color) {
-    this._material_type = material_type;
-    this._color = color;
-    this._emission_rate = 0;
-  }
-
-  get material_type() { return this._material_type; }
-  get color() { return this._material_type; }
-  get emission_rate() { return this._emission_rate; }
-}
-
 export class Object3d {
-  constructor(triangles, material_index) {
+  constructor(triangles, material) {
     this._triangles = triangles;
-    this._material_index = material_index;
+    this._material = material;
   }
 
-  static LoadObj(filename, material_index) {
-    return new Promise((resolve, reject) => {
+  static LoadObj(objData, material) {
       let vertices = [];
       let triangles = [];
 
-      jQuery.get(filename, (data) => {
-        let lines = data.split('\n');
-        for (let line of lines) {
-          let components = line.split(' ');
+      let lines = objData.split('\n');
+      for (let line of lines) {
+        let components = line.split(' ');
 
-          switch (components[0]) {
-            // Vertex indices
-            case 'f':
-              triangles.push(new Triangle(vertices[components[1] - 1], vertices[components[2] - 1], vertices[components[3] - 1]));
-              break;
+        switch (components[0]) {
+          // Vertex indices
+          case 'f':
+            triangles.push(new Triangle(vertices[components[1] - 1], vertices[components[2] - 1], vertices[components[3] - 1]));
+            break;
 
-            // Vertex positions
-            case 'v':
-              vertices.push(vec3.fromValues(components[1], components[2], components[3]));
-              break;
-          }
+          // Vertex positions
+          case 'v':
+            vertices.push(vec3.fromValues(components[1], components[2], components[3]));
+            break;
         }
-
-        resolve(new Object3d(triangles, material_index));
-      });
-    });
+      }
+      console.log(triangles);
+      return new Object3d(triangles, material);
   }
 
   get triangles() { return this._triangles; }
-  get material_index() { return this._material_index; }
+  get material() { return this._material; }
 }
