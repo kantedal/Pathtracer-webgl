@@ -32,6 +32,8 @@ export class Renderer {
 
     this.triangle_location;
     this.triangleTexture = null;
+    this.light_location;
+    this.lightTexture = null;
     this.material_location;
     this.materialTexture = null;
     this.sphereLocation;
@@ -72,7 +74,7 @@ export class Renderer {
         this.parameters.time = new Date().getTime() - this.parameters.start_time;
         this.parameters.samples += 1;
 
-        gl.uniform1f( this.timeLocation, this.parameters.time / 1000 );
+        gl.uniform1f( this.timeLocation, this.parameters.time / 100000 );
         gl.uniform2f( this.resolutionLocation, this.parameters.screenWidth, this.parameters.screenHeight );
 
         this.textures.reverse();
@@ -160,6 +162,15 @@ export class Renderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1024, 1024, 0, gl.RGB, gl.FLOAT, textureData.triangles);
 
+    // Create light texture
+    this.lightTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.lightTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 128, 128, 0, gl.RGB, gl.FLOAT, textureData.light_triangles);
+
     this.sphereTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.sphereTexture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -180,14 +191,17 @@ export class Renderer {
     gl.useProgram(this.tracerProgram);
     gl.uniform1i(this.accumulated_buffer_location, 0);
     gl.uniform1i(this.triangle_location, 1);
-    gl.uniform1i(this.sphere_location, 2);
-    gl.uniform1i(this.material_location, 3);
+    gl.uniform1i(this.light_location, 2);
+    gl.uniform1i(this.sphere_location, 3);
+    gl.uniform1i(this.material_location, 4);
 
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.triangleTexture);
     gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, this.sphereTexture);
+    gl.bindTexture(gl.TEXTURE_2D, this.lightTexture);
     gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, this.sphereTexture);
+    gl.activeTexture(gl.TEXTURE4);
     gl.bindTexture(gl.TEXTURE_2D, this.materialTexture);
 
     gl.uniform1i(gl.getUniformLocation( this.tracerProgram, 'triangle_count'), textureData.triangle_count );
@@ -239,6 +253,7 @@ export class Renderer {
 
         this.accumulated_buffer_location = gl.getUniformLocation(this.tracerProgram, "u_buffer_texture");
         this.triangle_location = gl.getUniformLocation(this.tracerProgram, "u_triangle_texture");
+        this.light_location = gl.getUniformLocation(this.tracerProgram, "u_light_texture");
         this.sphere_location = gl.getUniformLocation(this.tracerProgram, "u_sphere_texture");
         this.material_location = gl.getUniformLocation(this.tracerProgram, "u_material_texture");
 

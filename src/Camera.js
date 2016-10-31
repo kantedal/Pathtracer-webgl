@@ -8,6 +8,8 @@ export class Camera {
   }
 
   update() {
+    let distance = vec3.distance(this._look_at, this._position);
+
     vec3.subtract(this._direction, this._look_at, this._position);
     vec3.normalize(this._direction, this._direction);
 
@@ -16,6 +18,11 @@ export class Camera {
     this._camera_up = vec3.fromValues(0,0,0);
     vec3.cross(this._camera_right, this._direction, up_vector);
     vec3.cross(this._camera_up, this._camera_right, this._direction);
+
+    this._position = vec3.fromValues(this._look_at[0], this._look_at[1], this._look_at[2]);
+    let negative_direction = vec3.fromValues(0,0,0);
+    vec3.scale(negative_direction, this._direction, -distance);
+    vec3.add(this._position, this._position, negative_direction);
   }
 
   get camera_up() { return this._camera_up; }

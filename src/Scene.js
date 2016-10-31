@@ -22,7 +22,7 @@ export class Scene {
     let specular_red_material = new Material(vec3.fromValues(1,0,5,0.5), MATERIAL_TYPES.specular);
 
     let emission_material = new Material(vec3.fromValues(1,1,1), MATERIAL_TYPES.emission);
-    emission_material.emission_rate = 5.0;
+    emission_material.emission_rate = 10.0;
     let emission_red_material = new Material(vec3.fromValues(1,0.7,0.7), MATERIAL_TYPES.emission);
     emission_red_material.emission_rate = 20.0;
 
@@ -49,7 +49,7 @@ export class Scene {
     },
     () => {});
 
-    this.spheres.push(new Sphere(vec3.fromValues(5.0, -3, -3.5), 0.5, emission_red_material));
+    //this.spheres.push(new Sphere(vec3.fromValues(5.0, -3, -3.5), 0.5, emission_red_material));
     this.spheres.push(new Sphere(vec3.fromValues(8.0, 1.8, -3.0), 1.8, green_glass));
     this.spheres.push(new Sphere(vec3.fromValues(9.0, -1.8, -3.0), 1.8, white_material));
   }
@@ -61,7 +61,9 @@ export class Scene {
       materials: new Float32Array(512 * 512 * 3),
       material_count: 0,
       spheres: new Float32Array(512 * 512 * 3),
-      sphere_count: 0
+      sphere_count: 0,
+      light_triangles: new Float32Array(128 * 128 * 3),
+      light_count: 0
     };
 
     // Build material data
@@ -113,6 +115,7 @@ export class Scene {
 
     // Build triangle data
     let triangleData = [];
+    let lightData = [];
     for (let object of this.objects) {
 
       // Find material index for current object
@@ -124,6 +127,7 @@ export class Scene {
         }
       }
 
+      // Add triangle data
       for (let triangle of object.triangles) {
         // v0
         triangleData.push(triangle.v0[0]);
@@ -144,6 +148,29 @@ export class Scene {
         triangleData.push(material_index);
         triangleData.push(0);
         triangleData.push(0);
+
+        // Add light data
+        if (object.material.material_type == MATERIAL_TYPES.emission) {
+          // v0
+          lightData.push(triangle.v0[0]);
+          lightData.push(triangle.v0[1]);
+          lightData.push(triangle.v0[2]);
+
+          // Edge 1
+          lightData.push(triangle.v1[0]);
+          lightData.push(triangle.v1[1]);
+          lightData.push(triangle.v1[2]);
+
+          // Edge 2
+          lightData.push(triangle.v2[0]);
+          lightData.push(triangle.v2[1]);
+          lightData.push(triangle.v2[2]);
+
+          // Extra data
+          lightData.push(material_index);
+          lightData.push(0);
+          lightData.push(0);
+        }
       }
     }
 
@@ -152,8 +179,14 @@ export class Scene {
       if (i % 12 == 0) tri_count++;
       textureData.triangles[i] = triangleData[i];
     }
-
     textureData.triangle_count = tri_count;
+
+    let light_count = 0;
+    for (let i = 0; i < lightData.length; ++i) {
+      if (i % 12 == 0) light_count++;
+      textureData.light_triangles[i] = lightData[i];
+    }
+    textureData.light_count = light_count;
 
     return textureData;
   }
