@@ -37,11 +37,11 @@ export class Scene {
 
     // Load objects from .obj files
     LoadObjects([
-      {fileName: './dist/models/light_plane.txt', material: emission_material },
-      {fileName: './dist/models/floor.txt', material: white_material },
-      {fileName: './dist/models/right_wall.txt', material: blue_material },
-      {fileName: './dist/models/left_wall.txt', material: red_material},
-      {fileName: './dist/models/roof.txt', material: white_material},
+      {fileName: './dist/models/light_plane.obj', material: emission_material },
+      {fileName: './dist/models/floor.obj', material: white_material },
+      {fileName: './dist/models/right_wall.obj', material: blue_material },
+      {fileName: './dist/models/left_wall.obj', material: red_material},
+      {fileName: './dist/models/roof.obj', material: white_material},
     ], (objects) => {
       for (let object of objects) {
         this.objects.push(object);
@@ -49,7 +49,7 @@ export class Scene {
     },
     () => {});
 
-    //this.spheres.push(new Sphere(vec3.fromValues(5.0, -3, -3.5), 0.5, emission_red_material));
+    this.spheres.push(new Sphere(vec3.fromValues(5.0, -3, -3.5), 0.5, emission_red_material));
     this.spheres.push(new Sphere(vec3.fromValues(8.0, 1.8, -3.0), 1.8, green_glass));
     this.spheres.push(new Sphere(vec3.fromValues(9.0, -1.8, -3.0), 1.8, white_material));
   }

@@ -19,26 +19,36 @@ vec3 CosineDistributeDirection(vec3 normal) {
 }
 
 vec3 ShadowRay(vec3 collision_pos, vec3 collision_normal) {
-  vec3 light_intensity = vec3(0,0,0);
-  for (int light_index = 0; light_index < 2; light_index++) {
-    Triangle light_triangle = GetLightTriangleFromIndex(light_index);
-    vec3 light_pos = RandomizePointOnTriangle(light_triangle);
-    //vec3 light_pos = vec3(5, 3, 3);
+  int light_index = int(random(vec3(15.326, 24.4236, 812.23), time + 12421.362) * 2.0);
 
-    vec3 direction_to_light = normalize(collision_pos - light_pos);
-    vec3 light_normal =  normalize(cross(light_triangle.edge1, light_triangle.edge2));
-    if (dot(direction_to_light, light_normal) > 0.0) {
-      Ray shadow_ray = Ray(light_pos, direction_to_light);
+  // Fetch triangle and material
+  Triangle light_triangle = GetLightTriangleFromIndex(light_index);
+  Material light_material = GetMaterial(light_triangle.material_index);
+  vec3 light_normal = cross(light_triangle.edge1, light_triangle.edge2);
 
-      Collision collision;
-      if (SceneIntersections(shadow_ray, collision)) {
-        if (distance(collision.position, collision_pos) < 0.1) {
-          light_intensity += vec3(1,1,1) * (1.0 / pow(distance(light_pos, collision_pos) * 0.3, 2.0)) * dot(direction_to_light, -1.0 * collision_normal);
-        }
-      }
+  // Generate emission position and direction
+  vec3 light_emission_pos = RandomizePointOnTriangle(light_triangle);
+  vec3 light_emission_direction = normalize(collision_pos - light_emission_pos);
+  Ray shadow_ray = Ray(light_emission_pos, light_emission_direction);
+
+  // Test ray visibility
+  Collision collision;
+  if (SceneIntersections(shadow_ray, collision)) {
+    if (distance(collision.position, collision_pos) < 0.1) {
+
+      // Point is visible
+      vec3 distance_vector = light_emission_pos - collision_pos;
+      vec3 L = normalize(distance_vector);
+      float cosine_term = clamp(dot(collision_normal, L), 0.0, 1.0);
+      float light_area = (length(light_triangle.edge1) * length(light_triangle.edge2)) / 2.0;
+      float projected_light_area = clamp(dot(light_normal, -1.0 * L), 0.0, 1.0);
+
+
+      return light_material.emission_rate * light_material.color * cosine_term * projected_light_area * 1.0 / pow(length(distance_vector), 2.0);
     }
   }
-  return light_intensity;
+
+  return vec3(0,0,0);
 }
 
 struct LightPosition {
@@ -68,27 +78,29 @@ void GenerateLightPath(inout LightPosition light_positions[5]) {
 vec3 PathTrace(Ray ray) {
   vec3 mask = vec3(1,1,1);
   vec3 accumulated_color = vec3(0,0,0);
+  Collision collision;
+  Material collision_material;
 
   for (int iteration = 0; iteration < 5; iteration++) {
-    Collision collision;
+
     float distribution = 1.0;
 
     if (!SceneIntersections(ray, collision))
       return vec3(0,0,0);
 
-    Material collision_material = GetMaterial(collision.material_index);
-
-    vec3 light_intensity = ShadowRay(collision.position, collision.normal) * collision_material.color;
+    collision_material = GetMaterial(collision.material_index);
 
     vec3 next_dir = PDF(ray, collision_material, collision.normal, iteration, distribution);
     mask *= BRDF(ray, collision_material, collision.normal, next_dir) * distribution;
 
-    accumulated_color += (mask * collision_material.color * light_intensity);
-
     if (collision_material.material_type == 2) {
-      //accumulated_color += (mask * collision_material.color * collision_material.emission_rate);
+      accumulated_color += (mask * collision_material.color * collision_material.emission_rate);
       break;
     }
+    // else {
+    //   vec3 light_intensity = ShadowRay(collision.position, collision.normal);
+    //   accumulated_color += (mask * collision_material.color * light_intensity);
+    // }
 
     if (!(next_dir.x == 0.0 && next_dir.y == 0.0 && next_dir.z == 0.0)) {
       ray = Ray(collision.position + next_dir * 0.01, next_dir);
